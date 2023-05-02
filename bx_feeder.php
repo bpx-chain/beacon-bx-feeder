@@ -22,7 +22,7 @@ while(true) {
         
         $pdo -> query('CREATE TABLE IF NOT EXISTS blocks(
                            height int not null primary key,
-                           hash varchar(34) not null,
+                           hash varchar(66) not null,
                            body longtext not null
                        )');
         
