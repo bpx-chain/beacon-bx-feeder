@@ -30,7 +30,8 @@ while(true) {
         // Set -1, NULL if database empty
         $dbHeight = -1;
         $dbHash = NULL;
-        $row = $pdo -> query("SELECT height, hash FROM blocks ORDER BY height DESC LIMIT 1");
+        $q = $pdo -> query("SELECT height, hash FROM blocks ORDER BY height DESC LIMIT 1");
+        $row = $q -> fetch();
         if($row) {
             $dbHeight = $row['height'];
             $dbHash = $row['hash'];
