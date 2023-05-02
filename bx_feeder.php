@@ -1,0 +1,99 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__.'/vendor/autoload.php';
+include_once __DIR__.'/config.inc.php';
+
+$debug = false;
+if(defined('DEBUG_MODE') || (isset($argv[1]) && $argv[1] == '-d'))
+    $debug = true;
+
+$beacon = new BPX\Beacon(BPX_HOST, BPX_PORT, BPX_CRT, BPX_KEY);
+$pdo = NULL;
+
+while(true) {
+    try {
+        if($debug) echo "Next iteration\n";
+        
+        $pdo = new PDO('mysql:host='.DB_HOST.';dbname='.DB_NAME, DB_USER, DB_PASS);
+        $pdo -> setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo -> setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        $pdo -> setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        
+        $pdo -> query('CREATE TABLE IF NOT EXISTS blocks(
+                           height int not null primary key,
+                           hash varchar(34) not null,
+                           body longtext not null
+                       )');
+        
+        // Step 1. Get height and hash of the latest block in database
+        // Set -1, NULL if database empty
+        $dbHeight = -1;
+        $dbHash = NULL;
+        $row = $pdo -> query("SELECT height, hash FROM blocks ORDER BY height DESC LIMIT 1");
+        if($row) {
+            $dbHeight = $row['height'];
+            $dbHash = $row['hash'];
+        }
+        if($debug) echo "DB height: $dbHeight\nDB hash: $dbHash\n";
+        
+        // Step 2. If at least 1 block exists in database, check for potential reorg
+        // by backwards fetching node blocks by height and comparing node block hash to database
+        // block hash. If the hash matches, there was no reorg, if the hash differs, check previous block
+        
+        if($dbHeight >= 0) {
+            if($debug) echo "Checking for reorgs\n";
+            
+            while(true) {
+                $record = $beacon -> getBlockRecordByHeight($dbHeight);
+                if($debug) echo "Height = $dbHeight, DB hash = $dbHash, node hash = ".$record -> header_hash." ";
+                if($record -> header_hash == $dbHash) {
+                    if($debug) echo "(good)\n";
+                    break;
+                }
+                if($debug) echo "(reorg)\n";
+                $dbHeight--;
+                if($dbHeight == -1)
+                    break;
+                $q = $pdo -> prepare("SELECT hash FROM blocks WHERE height = :height");
+                $q -> execute([':height' => $dbHeight]);
+                $row = $q -> fetch();
+                if(!$row)
+                    throw new Exception('Block expected in database but not available');
+                $dbHash = $row['hash'];
+            }
+        }
+        
+        // Step 3. Start fetching and adding/replacing blocks to database from dbHeight + 1 to the latest blocks
+        // known by node
+        while(true) {
+            $dbHeight++;
+            
+            $record = $beacon -> getBlockRecordByHeight($dbHeight);
+            $block = $beacon -> getBlock($record -> header_hash);
+            
+            $jsonBlock = json_encode($block, JSON_UNESCAPED_SLASHES);
+            
+            $task = [
+                ':height' => $dbHeight,
+                ':hash' => $record -> header_hash,
+                ':body' => $jsonBlock
+            ];
+            $sql = 'REPLACE INTO blocks(height, hash, body)
+                    VALUES(:height, :hash, :body)';
+            $q = $pdo -> prepare($sql);
+            $q -> execute($task);
+            
+            if($debug) echo "Inserted block: height = $dbHeight\n"; 
+        }
+    }
+    
+    catch(Exception $e) {
+        echo get_class($e).': '.$e->getMessage()."\n";
+    }
+    
+    unset($pdo);
+    sleep(5);
+}
+
+?>
