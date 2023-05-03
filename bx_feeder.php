@@ -28,6 +28,40 @@ while(true) {
                            fee_recipient varchar(42) default null,
                            wd_addresses text default null
                        )');
+        $pdo -> query('CREATE TABLE IF NOT EXISTS state(
+                           network_name varchar(128) not null primary key,
+                           peak_height int not null,
+                           difficulty int not null,
+                           netspace int not null
+                       )');
+        
+        $networkInfo = $beacon -> getNetworkInfo();
+        $blockchainState = $beacon -> getBlockchainState();
+        
+        $task = [
+            ':network_name' => $networkInfo -> network_name,
+            ':peak_height' => $blockchainState -> peak -> height,
+            ':difficulty' => $blockchainState -> difficulty,
+            ':netspace' => $blockchainState -> space
+        ];
+        
+        $sql = 'REPLACE INTO state(
+                    network_name,
+                    peak_height,
+                    difficulty,
+                    netspace
+                )
+                VALUES(
+                    :network_name,
+                    :peak_height,
+                    :difficulty,
+                    :netspace
+                )');
+        
+        $q = $pdo -> prepare($sql);
+        $q -> execute($task);
+        
+        if($debug) echo "Updated state\n";
         
         // Step 1. Get height and hash of the latest block in database
         // Set -1, NULL if database empty
