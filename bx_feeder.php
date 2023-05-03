@@ -23,7 +23,10 @@ while(true) {
         $pdo -> query('CREATE TABLE IF NOT EXISTS blocks(
                            height int not null primary key,
                            hash varchar(66) not null,
-                           body longtext not null
+                           body longtext not null,
+                           execution_block_hash varchar(66) not null,
+                           fee_recipient varchar(42) default null,
+                           wd_addresses text default null
                        )');
         
         // Step 1. Get height and hash of the latest block in database
@@ -78,10 +81,26 @@ while(true) {
             $task = [
                 ':height' => $dbHeight,
                 ':hash' => $record -> header_hash,
-                ':body' => $jsonBlock
+                ':body' => $jsonBlock,
+                ':execution_block_hash' => $record -> execution_block_hash,
+                ':fee_recipient' => NULL,
+                ':wd_addresses' => NULL
             ];
-            $sql = 'REPLACE INTO blocks(height, hash, body)
-                    VALUES(:height, :hash, :body)';
+            
+            if(isset($block -> execution_payload -> feeRecipient))
+                $task[':fee_recipient'] = $block -> execution_payload -> feeRecipient;
+            
+            if(!empty($block -> execution_payload -> withdrawals)) {
+                $task[':wd_addresses'] = '';
+                foreach($block -> execution_payload -> withdrawals as $wd) {
+                    if($task[':wd_addresses'] != '') $task[':wd_addresses'] .= ',';
+                    $task[':wd_addresses'] .= $wd['address'];
+                }
+            }
+            
+            $sql = 'REPLACE INTO blocks(height, hash, body, execution_block_hash, fee_recipient, wd_addresses)
+                    VALUES(:height, :hash, :body, :execution_block_hash, :fee_recipient, :wd_addresses)';
+                    
             $q = $pdo -> prepare($sql);
             $q -> execute($task);
             
