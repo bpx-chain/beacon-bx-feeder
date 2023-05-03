@@ -56,7 +56,7 @@ while(true) {
                     :peak_height,
                     :difficulty,
                     :netspace
-                )');
+                )';
         
         $q = $pdo -> prepare($sql);
         $q -> execute($task);
