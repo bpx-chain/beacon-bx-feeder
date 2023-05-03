@@ -94,7 +94,7 @@ while(true) {
                 $task[':wd_addresses'] = '';
                 foreach($block -> execution_payload -> withdrawals as $wd) {
                     if($task[':wd_addresses'] != '') $task[':wd_addresses'] .= ',';
-                    $task[':wd_addresses'] .= $wd['address'];
+                    $task[':wd_addresses'] .= $wd -> address;
                 }
             }
             
