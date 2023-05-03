@@ -21,7 +21,7 @@ while(true) {
         $pdo -> setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         
         $pdo -> query('CREATE TABLE IF NOT EXISTS blocks(
-                           height int not null primary key,
+                           height bigint not null primary key,
                            hash varchar(66) not null,
                            body longtext not null,
                            execution_block_hash varchar(66) not null,
@@ -30,9 +30,9 @@ while(true) {
                        )');
         $pdo -> query('CREATE TABLE IF NOT EXISTS state(
                            network_name varchar(128) not null primary key,
-                           peak_height int not null,
-                           difficulty int not null,
-                           netspace int not null
+                           peak_height bigint not null,
+                           difficulty bigint not null,
+                           netspace bigint not null
                        )');
         
         $networkInfo = $beacon -> getNetworkInfo();
