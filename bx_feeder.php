@@ -23,8 +23,10 @@ while(true) {
         $pdo -> query('CREATE TABLE IF NOT EXISTS blocks(
                            height bigint not null primary key,
                            hash varchar(66) not null,
+                           timestamp bigint default null,
+                           coinbase varchar(42) not null,
                            body longtext not null,
-                           execution_block_hash varchar(66) not null,
+                           execution_block_hash varchar(66) default null,
                            fee_recipient varchar(42) default null,
                            wd_addresses text default null
                        )');
@@ -115,11 +117,19 @@ while(true) {
             $task = [
                 ':height' => $dbHeight,
                 ':hash' => $record -> header_hash,
+                ':coinbase' => $record -> coinbase,
                 ':body' => $jsonBlock,
-                ':execution_block_hash' => $record -> execution_block_hash,
+                ':timestamp' => NULL,
+                ':execution_block_hash' => NULL,
                 ':fee_recipient' => NULL,
                 ':wd_addresses' => NULL
             ];
+            
+            if(isset($record -> timestamp))
+                $task[':timestamp'] = $record -> timestamp;
+            
+            if(isset($record -> execution_block_hash))
+                $task[':execution_block_hash'] = $record -> execution_block_hash;
             
             if(isset($block -> execution_payload -> feeRecipient))
                 $task[':fee_recipient'] = $block -> execution_payload -> feeRecipient;
@@ -132,8 +142,8 @@ while(true) {
                 }
             }
             
-            $sql = 'REPLACE INTO blocks(height, hash, body, execution_block_hash, fee_recipient, wd_addresses)
-                    VALUES(:height, :hash, :body, :execution_block_hash, :fee_recipient, :wd_addresses)';
+            $sql = 'REPLACE INTO blocks(height, hash, coinbase, body, timestamp, execution_block_hash, fee_recipient, wd_addresses)
+                    VALUES(:height, :hash, :coinbase, :body, :execution_block_hash, :fee_recipient, :wd_addresses)';
                     
             $q = $pdo -> prepare($sql);
             $q -> execute($task);
