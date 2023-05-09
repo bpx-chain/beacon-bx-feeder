@@ -143,7 +143,7 @@ while(true) {
             }
             
             $sql = 'REPLACE INTO blocks(height, hash, coinbase, body, timestamp, execution_block_hash, fee_recipient, wd_addresses)
-                    VALUES(:height, :hash, :coinbase, :body, :execution_block_hash, :fee_recipient, :wd_addresses)';
+                    VALUES(:height, :hash, :coinbase, :body, :timestamp, :execution_block_hash, :fee_recipient, :wd_addresses)';
                     
             $q = $pdo -> prepare($sql);
             $q -> execute($task);
